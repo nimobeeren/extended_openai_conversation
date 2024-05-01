@@ -1,35 +1,19 @@
 import os
-from dataclasses import dataclass
 
 import pytest
+from unittest.mock import MagicMock
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY
 from homeassistant.components import conversation
 from homeassistant.core import Context
 
-
 from custom_components.extended_openai_conversation import OpenAIAgent
 from custom_components.extended_openai_conversation.const import DOMAIN
 from custom_components.extended_openai_conversation.config_flow import DEFAULT_OPTIONS
 
 
-@dataclass
-class MockConfig:
-    location_name: str = "Home"
-
-class MockBus:
-    def async_fire(self, event_type, event_data):
-        pass
-
-@dataclass
-class MockHomeAssistant:
-    config: MockConfig
-    data: dict
-    bus: MockBus
-
-
-ENTRY = ConfigEntry(
+CONFIG_ENTRY = ConfigEntry(
     version=0,
     minor_version=0,
     domain=DOMAIN,
@@ -38,14 +22,18 @@ ENTRY = ConfigEntry(
     source="test",
     options={},
 )
-
-HASS = MockHomeAssistant(config=MockConfig(), data={}, bus=MockBus())
+EXPOSED_ENTITIES = []
+LOCATION_NAME = "Home"
 
 
 @pytest.fixture
 def agent(monkeypatch):
-    agent = OpenAIAgent(hass=HASS, entry=ENTRY)
-    monkeypatch.setattr(agent, "get_exposed_entities", lambda: [])
+    mock_hass = MagicMock()
+    mock_hass.config.location_name = LOCATION_NAME
+    mock_hass.data = {}
+
+    agent = OpenAIAgent(hass=mock_hass, entry=CONFIG_ENTRY)
+    monkeypatch.setattr(agent, "get_exposed_entities", lambda: EXPOSED_ENTITIES)
     return agent
 
 
@@ -64,4 +52,4 @@ async def test_process(agent):
         language="en",
     )
     result = await agent.async_process(input)
-    assert len(result.response.speech['plain']['speech']) > 0
+    assert len(result.response.speech["plain"]["speech"]) > 0
